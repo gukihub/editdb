@@ -561,7 +561,7 @@ func handler_index(c *libdb.Context) {
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>My First Grid</title>
+<title>EditDB</title>
  
 <link rel="stylesheet" type="text/css" media="screen" href="css/ui-cupernito/jquery-ui.min.css" />
 <link rel="stylesheet" type="text/css" media="screen" href="css/ui.jqgrid.css" />
