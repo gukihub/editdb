@@ -1,4 +1,11 @@
+DIRS=main lsdb sopt
+
 all:
-	make -C main
-	make -C sopt
-	make -C lsdb
+	for dir in $(DIRS); do \
+	  make -C $$dir; \
+	done
+
+clean:
+	for dir in $(DIRS); do \
+	  make -C $$dir clean; \
+	done
