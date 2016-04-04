@@ -42,7 +42,9 @@ type tblcol struct {
 //
 
 const (
-	nullstr string = "nil"
+	nullstr    string = "nil"
+	jqgridoper string = "jqGrid:oper"
+	jqgridid   string = "jqGrid:id"
 )
 
 //
@@ -54,6 +56,8 @@ func handler(c *libdb.Context) {
 	switch urlquery.Get("app") {
 	case "lstable":
 		handler_lstable(c)
+	case "edtable":
+		handler_edtable(c)
 	default:
 		handler_index(c)
 	}
@@ -150,7 +154,7 @@ func list_constraints(c *libdb.Context, table string) (conslice []constraint) {
 	return (conslice)
 }
 
-// return a slice with the columns of the given table
+// return a slice with table.column of the given table
 func get_table_desc(c *libdb.Context, table string) (table_desc []string) {
 
 	query := fmt.Sprintf(`
@@ -179,6 +183,7 @@ func get_table_desc(c *libdb.Context, table string) (table_desc []string) {
 	return table_desc
 }
 
+// return a slice with the columns of the given table
 func get_col_names(c *libdb.Context, table string) (r []string) {
 
 	query := fmt.Sprintf(`
@@ -478,6 +483,114 @@ func trapexit(c *libdb.Context) {
 	libdb.Dbclose(c)
 }
 
+func handler_edtable(c *libdb.Context) {
+	f, err := os.Create("editdb.log")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	// write to the file for now. Otherwise, w := c.W
+	w := f
+
+	urlquery := c.R.URL.Query()
+	table := urlquery.Get("table")
+	cols := get_col_names(c, table)
+
+	c.R.ParseForm()
+	form := c.R.Form
+	oper := form.Get(jqgridoper)
+
+	switch oper {
+	case "edit":
+		id := form.Get(jqgridid)
+		updateval := make([]string, 0)
+		for _, col := range cols {
+			val := form.Get(col)
+			if val != "" {
+				updateval = append(updateval,
+					fmt.Sprintf("%s=%s", col, val))
+			}
+		}
+		fmt.Fprintf(w,
+			"update %s set %s where %s=%s\n",
+			table, strings.Join(updateval, ","), cols[0], id)
+		sql := fmt.Sprintf("update %s set %s where %s=%s",
+			table, strings.Join(updateval, ","), cols[0], id)
+		c.Dbh.Query(sql)
+	case "add":
+		colslice := make([]string, 0)
+		valslice := make([]string, 0)
+
+		for _, col := range cols {
+			val := form.Get(col)
+			if val != "" {
+				colslice = append(colslice,
+					fmt.Sprintf("%s", col))
+				valslice = append(valslice,
+					fmt.Sprintf("\"%s\"", val))
+			}
+		}
+		fmt.Fprintf(w,
+			"insert into %s (%s) values(%s)\n",
+			table, strings.Join(colslice, ","),
+			strings.Join(valslice, ","))
+		sql := fmt.Sprintf("insert into %s (%s) values(%s)",
+			table, strings.Join(colslice, ","),
+			strings.Join(valslice, ","))
+		c.Dbh.Query(sql)
+
+	case "del":
+		id := form.Get(jqgridid)
+		fmt.Fprintf(f, "delete from %s where %s=%s\n",
+			table, cols[0], id)
+		sql := fmt.Sprintf("delete from %s where %s=%s",
+			table, cols[0], id)
+		c.Dbh.Query(sql)
+
+	default:
+		handler_edtable_to_file(c)
+
+	}
+}
+
+func handler_edtable_to_file(c *libdb.Context) {
+	f, err := os.Create("editdb.log")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	w := f
+	r := c.R
+
+	fmt.Fprintln(w, "Method:", r.Method)
+	fmt.Fprintln(w, "URL:", r.URL.String())
+	query := r.URL.Query()
+	for k := range query {
+		fmt.Fprintln(w, "Query", k+":", query.Get(k))
+	}
+	r.ParseForm()
+	form := r.Form
+	for k := range form {
+		fmt.Fprintln(w, "Form", k+":", form.Get(k))
+	}
+	post := r.PostForm
+	for k := range post {
+		fmt.Fprintln(w, "PostForm", k+":", post.Get(k))
+	}
+	fmt.Fprintln(w, "RemoteAddr:", r.RemoteAddr)
+	if referer := r.Referer(); len(referer) > 0 {
+		fmt.Fprintln(w, "Referer:", referer)
+	}
+	if ua := r.UserAgent(); len(ua) > 0 {
+		fmt.Fprintln(w, "UserAgent:", ua)
+	}
+	for _, cookie := range r.Cookies() {
+		fmt.Fprintln(w, "Cookie", cookie.Name+":", cookie.Value, cookie.Path, cookie.Domain, cookie.RawExpires)
+	}
+}
+
 func handler_lstable(c *libdb.Context) {
 	header := c.W.Header()
 	header.Set("Content-type", "text/xml;charset=utf-8")
@@ -583,7 +696,7 @@ html, body {
 <script type="text/javascript">
 $(function () {
 `
-	const s2 = `
+	s2 := fmt.Sprintf(`
 $("#grid{{.Tnum}}").jqGrid({
   url: "?app=lstable&table={{.Tname}}",
   datatype: "xml",
@@ -591,11 +704,11 @@ $("#grid{{.Tnum}}").jqGrid({
   colModel: [
 {{.Model}}
   ],
-  prmNames: { 'oper': 'jqGrid:oper', 'id':'jqGrid:id' },
+  prmNames: { 'oper': '%s', 'id':'%s' },
   cellEdit: true,
   cellsubmit: 'remote',
-  cellurl: 'edit.php?table={{.Tname}}',
-  editurl: 'edit.php?table={{.Tname}}',
+  cellurl: '?app=edtable&table={{.Tname}}',
+  editurl: '?app=edtable&table={{.Tname}}',
   pager: "#pager{{.Tnum}}",
   height:'auto',
   rowNum: 10,
@@ -611,7 +724,7 @@ $("#grid{{.Tnum}}").jqGrid({
   {edit:false,add:true,del:true,search:true},
   { }, { closeAfterAdd: true }
 );
-`
+`, jqgridoper, jqgridid)
 
 	const s3 = `
 }); 
