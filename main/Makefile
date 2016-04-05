@@ -1,6 +1,9 @@
+
+DESTDIR=/srv/jqgrid/grid3
+
 all:
 	go build -o index.cgi
-	cp index.cgi /home/gui/docker/containers/jqgrid/grid3
+	cp index.cgi $(DESTDIR)
 
 clean:
 	rm index.cgi

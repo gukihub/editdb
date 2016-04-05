@@ -456,10 +456,19 @@ func display_table_content(c *libdb.Context,
 // return a slice with the db tables list
 func table_list(c *libdb.Context) (tables []string, err error) {
 
+
+/*
+	// this one exclude views
 	rows, err := c.Dbh.Query(fmt.Sprintf(`
 		SELECT TABLE_NAME
 		FROM INFORMATION_SCHEMA.TABLES
 		WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA='%s'
+		`, c.Dbi.Name))
+*/
+	rows, err := c.Dbh.Query(fmt.Sprintf(`
+		SELECT TABLE_NAME
+		FROM INFORMATION_SCHEMA.TABLES
+		WHERE TABLE_SCHEMA='%s'
 		`, c.Dbi.Name))
 	if err != nil {
 		panic(err.Error())
