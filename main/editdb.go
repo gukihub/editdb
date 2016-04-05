@@ -42,7 +42,6 @@ type tblcol struct {
 //
 
 const (
-	nullstr    string = "nil"
 	jqgridoper string = "jqGrid:oper"
 	jqgridid   string = "jqGrid:id"
 )
@@ -424,7 +423,7 @@ func display_table_content(c *libdb.Context,
 	for _, val1 := range rows {
 		for _, val2 := range a {
 			if val1[val2] == nil {
-				val1[val2] = nullstr
+				val1[val2] = libdb.Nullstr
 			}
 			if len(fmt.Sprintf("%s", val1[val2])) > b[val2] {
 				b[val2] = len(fmt.Sprintf("%s", val1[val2]))
@@ -484,14 +483,8 @@ func trapexit(c *libdb.Context) {
 }
 
 func handler_edtable(c *libdb.Context) {
-	f, err := os.Create("editdb.log")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-
-	// write to the file for now. Otherwise, w := c.W
-	w := f
+	// log sql request to the wbe serveur log
+	w := os.Stderr
 
 	urlquery := c.R.URL.Query()
 	table := urlquery.Get("table")
@@ -502,6 +495,7 @@ func handler_edtable(c *libdb.Context) {
 	oper := form.Get(jqgridoper)
 
 	switch oper {
+
 	case "edit":
 		id := form.Get(jqgridid)
 		updateval := make([]string, 0)
@@ -509,15 +503,19 @@ func handler_edtable(c *libdb.Context) {
 			val := form.Get(col)
 			if val != "" {
 				updateval = append(updateval,
-					fmt.Sprintf("%s=%s", col, val))
+					fmt.Sprintf("%s=\"%s\"", col, val))
 			}
 		}
-		fmt.Fprintf(w,
-			"update %s set %s where %s=%s\n",
-			table, strings.Join(updateval, ","), cols[0], id)
 		sql := fmt.Sprintf("update %s set %s where %s=%s",
 			table, strings.Join(updateval, ","), cols[0], id)
-		c.Dbh.Query(sql)
+		fmt.Fprintf(w, "%s\n", sql)
+		_, err := c.Dbh.Query(sql)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			http.Error(c.W, fmt.Sprintf("%s\n", err),
+				http.StatusInternalServerError)
+		}
+
 	case "add":
 		colslice := make([]string, 0)
 		valslice := make([]string, 0)
@@ -531,22 +529,28 @@ func handler_edtable(c *libdb.Context) {
 					fmt.Sprintf("\"%s\"", val))
 			}
 		}
-		fmt.Fprintf(w,
-			"insert into %s (%s) values(%s)\n",
-			table, strings.Join(colslice, ","),
-			strings.Join(valslice, ","))
 		sql := fmt.Sprintf("insert into %s (%s) values(%s)",
 			table, strings.Join(colslice, ","),
 			strings.Join(valslice, ","))
-		c.Dbh.Query(sql)
+		fmt.Fprintf(w, "%s\n", sql)
+		_, err := c.Dbh.Query(sql)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			http.Error(c.W, fmt.Sprintf("%s\n", err),
+				http.StatusInternalServerError)
+		}
 
 	case "del":
 		id := form.Get(jqgridid)
-		fmt.Fprintf(f, "delete from %s where %s=%s\n",
-			table, cols[0], id)
 		sql := fmt.Sprintf("delete from %s where %s=%s",
 			table, cols[0], id)
-		c.Dbh.Query(sql)
+		fmt.Fprintf(w, "%s\n", sql)
+		_, err := c.Dbh.Query(sql)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			http.Error(c.W, fmt.Sprintf("%s\n", err),
+				http.StatusInternalServerError)
+		}
 
 	default:
 		handler_edtable_to_file(c)

@@ -39,7 +39,7 @@ type Context struct {
 //
 
 const (
-	Nullstr string = "nil"
+	Nullstr string = ""
 )
 
 //
