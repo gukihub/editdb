@@ -10,7 +10,7 @@ import (
 	"github.com/gukihub/editdb/lib"
 	"net/http"
 	"net/http/cgi"
-	"strings"
+	"os"
 )
 
 func lsconenv(c *libdb.Context) {
@@ -61,19 +61,18 @@ func handler(c *libdb.Context) {
 	*/
 
 	query := fmt.Sprintf("select %s,%s from %s", idx, disp, table)
+	fmt.Fprintf(os.Stderr, "%s\n", query)
 	rows, err := libdb.Query(c.Dbh, query)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	var res []string
-	fmt.Fprintf(c.W, "{\n")
+	fmt.Fprintf(c.W, "<select>\n")
 	for _, val := range rows {
-		res = append(res, fmt.Sprintf("  '%s':'%s'",
-			val[idx], val[disp]))
+		fmt.Fprintf(c.W, "  <option value='%s'>%s</option>\n",
+			val[idx], val[disp])
 	}
-	fmt.Fprintf(c.W, strings.Join(res, ",\n"))
-	fmt.Fprintf(c.W, "\n}\n")
+	fmt.Fprintf(c.W, "</select>\n")
 }
 
 func main() {

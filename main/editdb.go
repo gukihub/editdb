@@ -210,7 +210,18 @@ func get_col_names(c *libdb.Context, table string) (r []string) {
 	return res
 }
 
-func mkeditvalue(c *libdb.Context, table string, idx string) (r string) {
+func mkeditopt_url(c *libdb.Context, table string, idx string) (r string) {
+
+	colnames := tablecol(c, table)
+	disp := colnames[1]
+
+	r = fmt.Sprintf("        dataUrl: 'sopt.cgi?table=%s&idx=%s&disp=%s'",
+		table, idx, disp)
+
+	return r
+}
+
+func mkeditopt_value(c *libdb.Context, table string, idx string) (r string) {
 
 	colnames := tablecol(c, table)
 	disp := colnames[1]
@@ -226,7 +237,12 @@ func mkeditvalue(c *libdb.Context, table string, idx string) (r string) {
 		res = append(res, fmt.Sprintf("          '%s':'%s'",
 			val[idx], val[disp]))
 	}
-	return (fmt.Sprintf(strings.Join(res, ",\n")))
+
+	r = fmt.Sprintf(`        value: {
+%s
+        }`, strings.Join(res, ",\n"))
+
+	return r
 }
 
 // return a string with the jqGrid colModel option
@@ -261,13 +277,11 @@ func describe_cols(c *libdb.Context, table string) (r string) {
       name: '%s',
       editable: true,
       edittype: 'select',
-      formatter: 'select',
+      //formatter: 'select',
       editoptions:{
-        value: {
 %s
-        }
       }
-    }`, colName.String, mkeditvalue(c, cntr[colName.String].table, cntr[colName.String].column)))
+    }`, colName.String, mkeditopt_url(c, cntr[colName.String].table, cntr[colName.String].column)))
 		} else {
 			res = append(res,
 				fmt.Sprintf("    { name: '%s', editable: true, edittype:'text' }", colName.String))
@@ -456,31 +470,28 @@ func display_table_content(c *libdb.Context,
 // return a slice with the db tables list
 func table_list(c *libdb.Context) (tables []string, err error) {
 
+	// tables type to return. We display views first.
+	table_type := []string{"VIEW", "BASE TABLE"}
 
-/*
-	// this one exclude views
-	rows, err := c.Dbh.Query(fmt.Sprintf(`
-		SELECT TABLE_NAME
-		FROM INFORMATION_SCHEMA.TABLES
-		WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA='%s'
-		`, c.Dbi.Name))
-*/
-	rows, err := c.Dbh.Query(fmt.Sprintf(`
-		SELECT TABLE_NAME
-		FROM INFORMATION_SCHEMA.TABLES
-		WHERE TABLE_SCHEMA='%s'
-		`, c.Dbi.Name))
-	if err != nil {
-		panic(err.Error())
-	}
-
-	for rows.Next() {
-		var tableName sql.NullString
-
-		if err := rows.Scan(&tableName); err != nil {
+	for _, t := range table_type {
+		query := fmt.Sprintf(`
+			SELECT TABLE_NAME
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE='%s' AND TABLE_SCHEMA='%s'
+			`, t, c.Dbi.Name)
+		rows, err := c.Dbh.Query(query)
+		if err != nil {
 			panic(err.Error())
 		}
-		tables = append(tables, tableName.String)
+
+		for rows.Next() {
+			var tableName sql.NullString
+
+			if err := rows.Scan(&tableName); err != nil {
+				panic(err.Error())
+			}
+			tables = append(tables, tableName.String)
+		}
 	}
 
 	return tables, err
@@ -720,10 +731,12 @@ $("#grid{{.Tnum}}").jqGrid({
   prmNames: { 'oper': '%s', 'id':'%s' },
   cellEdit: true,
   cellsubmit: 'remote',
+  // url used when editing a record
   cellurl: '?app=edtable&table={{.Tname}}',
+  // url used when adding a record
   editurl: '?app=edtable&table={{.Tname}}',
   pager: "#pager{{.Tnum}}",
-  height:'auto',
+  height: 'auto',
   rowNum: 10,
   rowList: [10, 20, 30],
   //sortname: "",
