@@ -1,4 +1,4 @@
-DIRS=main lsdb sopt
+DIRS=main lsdb
 
 all:
 	for dir in $(DIRS); do \
