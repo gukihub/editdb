@@ -1,5 +1,5 @@
 //
-//   editdb.go - display a mysql database table contents
+//   editdb.go - easily edit a mysql database tables
 //
 //   Guillaume Kielwasser - 17/02/2016
 //
@@ -57,6 +57,8 @@ func handler(c *libdb.Context) {
 		handler_lstable(c)
 	case "edtable":
 		handler_edtable(c)
+	case "lsopts":
+		handler_lsopts(c)
 	default:
 		handler_index(c)
 	}
@@ -216,8 +218,8 @@ func mkeditopt_url(c *libdb.Context, table string, idx string) (r string) {
 	colnames := tablecol(c, table)
 	disp := colnames[1]
 
-	r = fmt.Sprintf("        dataUrl: 'sopt.cgi?table=%s&idx=%s&disp=%s'",
-		table, idx, disp)
+	r = fmt.Sprintf("%8sdataUrl: '?app=lsopts&table=%s&idx=%s&disp=%s'",
+		" ", table, idx, disp)
 
 	return r
 }
@@ -752,6 +754,28 @@ func handler_lstable(c *libdb.Context) {
 		fmt.Fprintf(c.W, "  </row>\n")
 	}
 	fmt.Fprintf(c.W, "</rows>\n")
+}
+
+func handler_lsopts(c *libdb.Context) {
+	urlquery := c.R.URL.Query()
+
+	table := urlquery.Get("table")
+	idx := urlquery.Get("idx")
+	disp := urlquery.Get("disp")
+
+	query := fmt.Sprintf("select %s,%s from %s", idx, disp, table)
+	fmt.Fprintf(os.Stderr, "%s\n", query)
+	rows, err := libdb.Query(c.Dbh, query)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	fmt.Fprintf(c.W, "<select>\n")
+	for _, val := range rows {
+		fmt.Fprintf(c.W, "  <option value='%s'>%s</option>\n",
+			val[idx], val[disp])
+	}
+	fmt.Fprintf(c.W, "</select>\n")
 }
 
 func handler_index(c *libdb.Context) {
