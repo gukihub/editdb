@@ -182,7 +182,7 @@ func mkquery(ctx *libdb.Context, table string,
 	var q []string
 	// and slice
 	var a []string
-	// field slive
+	// field slice
 	var f []string
 
 	// the actual table is always queried

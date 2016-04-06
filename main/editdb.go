@@ -63,7 +63,6 @@ func handler(c *libdb.Context) {
 }
 
 // return a map with the constraints of the given table
-// and print them to w
 func mapcon(c *libdb.Context, table string) (r map[string]tblcol) {
 	r = make(map[string]tblcol)
 
@@ -140,9 +139,11 @@ func list_constraints(c *libdb.Context, table string) (conslice []constraint) {
 			&ref_column); err != nil {
 			panic(err.Error())
 		}
-		fmt.Fprintf(c.W, "Constraint from %s.%s to %s.%s\n",
-			table.String, column.String, ref_table.String,
-			ref_column.String)
+		/*
+			fmt.Fprintf(c.W, "Constraint from %s.%s to %s.%s\n",
+				table.String, column.String, ref_table.String,
+				ref_column.String)
+		*/
 		cons.table = table.String
 		cons.column = column.String
 		cons.ref_table = ref_table.String
@@ -345,6 +346,65 @@ func describe_table(c *libdb.Context, table string) {
 }
 
 // construct the select query that will display all fields
+// of the given table and resolve the foreign keys constraints
+func mkquery2(ctx *libdb.Context, table string) (query string) {
+
+	// slice of the table constraints
+	conslice := list_constraints(ctx, table)
+
+	// tables list to query from
+	var t []string
+	// list of conditions
+	var c []string
+	// query slice
+	var q []string
+	// and slice
+	var a []string
+	// field slice
+	var f []string
+
+	// the actual table is always queried
+	t = append(t, table)
+
+	for _, value := range conslice {
+		t = append(t, value.ref_table)
+		c = append(c, fmt.Sprintf("%s.%s=%s.%s",
+			value.table, value.column,
+			value.ref_table, value.ref_column))
+	}
+	//for _, field := range get_table_desc(ctx, table) {
+	cons := mapcon(ctx, table)
+	for _, field := range get_col_names(ctx, table) {
+		if cons[field].table != "" {
+			ref_table_cols := get_col_names(ctx, cons[field].table)
+			f = append(f, fmt.Sprintf("%s.%s as '%s.%s'",
+				cons[field].table, ref_table_cols[1],
+				table, field))
+
+		} else {
+			f = append(f, fmt.Sprintf("%s.%s as '%s.%s'",
+				table, field, table, field))
+		}
+	}
+	q = append(q, "select")
+	q = append(q, strings.Join(f, ","))
+	q = append(q, "from")
+	q = append(q, strings.Join(t, ","))
+
+	if len(c) > 0 {
+		q = append(q, "where")
+
+		for _, value := range c {
+			a = append(a, value)
+		}
+	}
+
+	q = append(q, strings.Join(a, " and "))
+	query = strings.Join(q, " ")
+	return query
+}
+
+// construct the select query that will display all fields
 // of the given table. In addition, it will add all fields from the
 // foreign tables by analysing its constraints
 func mkquery(ctx *libdb.Context, table string,
@@ -358,7 +418,7 @@ func mkquery(ctx *libdb.Context, table string,
 	var q []string
 	// and slice
 	var a []string
-	// field slive
+	// field slice
 	var f []string
 
 	// the actual table is always queried
@@ -672,14 +732,18 @@ func handler_lstable(c *libdb.Context) {
 	fmt.Fprintf(c.W, "  <total>%d</total>\n", total)
 	fmt.Fprintf(c.W, "  <record>%d</record>\n", count)
 
-	query = fmt.Sprintf("select * from %s order by %s %s limit %d,%d",
-		table, sidx, sord, start, limit)
+	//query = fmt.Sprintf("select * from %s order by %s %s limit %d,%d",
+	//	table, sidx, sord, start, limit)
+	query = fmt.Sprintf("%s order by %s %s limit %d,%d",
+		mkquery2(c, table), sidx, sord, start, limit)
+	fmt.Fprintf(os.Stderr, "%s\n", query)
 	rows, err = libdb.Query(c.Dbh, query)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	col_names := get_col_names(c, table)
+	//col_names := get_col_names(c, table)
+	col_names := get_table_desc(c, table)
 	for _, row := range rows {
 		fmt.Fprintf(c.W, "  <row id=\"%s\">\n", row[col_names[0]])
 		for _, val := range col_names {
