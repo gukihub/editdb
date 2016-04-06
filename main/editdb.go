@@ -992,7 +992,9 @@ body
                 <!--<br/><br/>-->`)
 
 	for _, t := range navslice {
-		fmt.Fprintf(c.W, "<a href=\"#grid%d\">%s</a></br>\n",
+		// we point the link to gbox_grid# instead of grid#
+		// because it would point to low in the table
+		fmt.Fprintf(c.W, "<a href=\"#gbox_grid%d\">%s</a></br>\n",
 			t.index, t.table)
 	}
 
