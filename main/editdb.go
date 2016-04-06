@@ -800,7 +800,7 @@ html, body {
 }
 </style>
 -->
- 
+
 <script src="js/jquery-1.11.0.min.js" type="text/javascript"></script>
 <script src="js/i18n/grid.locale-en.js" type="text/javascript"></script>
 <script src="js/jquery.jqGrid.min.js" type="text/javascript"></script>
@@ -844,8 +844,88 @@ $("#grid{{.Tnum}}").jqGrid({
 }); 
 </script>
  
+<style>
+html
+{
+    height:100%;
+}
+
+body
+{
+    margin:0px;
+    font-family:verdana;
+    font-size:12px;
+    position:absolute; top:0; bottom:0; right:0; left:0;
+}
+
+#cadre
+{
+/*
+    margin-top:20px;
+    margin-left:40px;
+    margin-right:40px;
+    margin-bottom:20px;
+*/
+    margin-top:0px;
+    margin-left:0px;
+    margin-right:0px;
+    margin-bottom:0px;
+    border:solid 1px black;
+    position:absolute;
+    top:0px;
+    left:0px;
+    right:0px;
+    bottom:0px;
+}
+
+#header {
+    background-color:black;
+    color:white;
+    text-align:center;
+    padding:5px;
+    height:60px;
+}
+
+#nav {
+    line-height:20px;
+    background-color:#eeeeee;
+    float:left;
+    padding:5px;
+    overflow:auto;
+    position:absolute;
+    width:120px;
+    top:70px;
+    left:0px;
+    bottom:0px;
+}
+
+#main {
+    padding:10px;
+    overflow:auto;
+    position:absolute;
+    top:70px;
+    left:130px;
+    right:0px;
+    bottom:24px;
+}
+#footer {
+    background-color:black;
+    color:white;
+    clear:both;
+    text-align:center;
+    padding:5px;
+    position:absolute;
+    left:0px;
+    right:0px;
+    bottom:0px;
+    height:14px
+}
+</style>
+
 </head>
 <body>
+  <div id="cadre">
+    <div id="header">
 `
 
 	s4 := `
@@ -876,6 +956,12 @@ $("#grid{{.Tnum}}").jqGrid({
 	var t1 = template.Must(template.New("t1").Parse(s2))
 	var t2 = template.Must(template.New("t1").Parse(s4))
 
+	type tblidx struct {
+		index int
+		table string
+	}
+
+	navslice := make([]tblidx, 0)
 	i := 1
 	// loop on the db table list
 	for _, table := range tables {
@@ -891,12 +977,33 @@ $("#grid{{.Tnum}}").jqGrid({
 		if err != nil {
 			fmt.Println("executing template:", err)
 		}
+		navslice = append(navslice, tblidx{index: i, table: table})
 		i++
 	}
 
 	fmt.Fprintf(c.W, "%s\n", s3)
 
+	// in div header
 	fmt.Fprintf(c.W, "  <h2>Database: %s</h2>\n", c.Dbi.Name)
+
+	fmt.Fprintf(c.W, ` </div>
+
+        <div id="nav">
+                <!--<br/><br/>-->`)
+
+	for _, t := range navslice {
+		fmt.Fprintf(c.W, "<a href=\"#grid%d\">%s</a></br>\n",
+			t.index, t.table)
+	}
+
+	fmt.Fprintf(c.W, `
+                <!--<br/><br/>-->
+        </div>
+
+        <div id="main">
+                <!--<br/>-->
+
+`)
 
 	i = 1
 	for _, _ = range tables {
@@ -910,6 +1017,12 @@ $("#grid{{.Tnum}}").jqGrid({
 		i++
 	}
 
+	fmt.Fprintf(c.W, ` </div>
+        <div id="footer">
+                EditDB 1.0
+        </div>
+  </div>
+`)
 	fmt.Fprintf(c.W, "%s\n", s5)
 }
 
