@@ -1,11 +1,6 @@
-DIRS=main lsdb
-
 all:
-	for dir in $(DIRS); do \
-	  make -C $$dir; \
-	done
+	go build -o index.cgi
+	cp index.cgi /srv/jqgrid/grid3
 
 clean:
-	for dir in $(DIRS); do \
-	  make -C $$dir clean; \
-	done
+	rm index.cgi
