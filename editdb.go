@@ -57,6 +57,8 @@ func handler(c *Context) {
 		handler_edtable(c)
 	case "lsopts":
 		handler_lsopts(c)
+	case "form":
+		handler_form(c)
 	default:
 		handler_index(c)
 	}
@@ -542,6 +544,107 @@ func handler_lsopts(c *Context) {
 			val[idx], val[disp])
 	}
 	fmt.Fprintf(c.W, "</select>\n")
+}
+
+func handler_form(c *Context) {
+	urlquery := c.R.URL.Query()
+
+	table := urlquery.Get("table")
+	field := urlquery.Get("field")
+	key := urlquery.Get("key")
+	id, _ := strconv.Atoi(urlquery.Get("id"))
+
+	fmt.Fprintf(c.W, "field: %s<br>\n", field)
+
+	query := fmt.Sprintf(`
+	select
+		TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,
+		REFERENCED_COLUMN_NAME
+	from
+		information_schema.key_column_usage
+	where
+		REFERENCED_TABLE_NAME is not NULL
+		and
+		CONSTRAINT_SCHEMA='%s'
+		and
+		REFERENCED_TABLE_NAME='%s'
+	`, c.Dbi.Name, table)
+
+	//fmt.Fprintf(os.Stderr, "%s\n", query)
+	rows, err := Query(c.Dbh, query)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	for _, row := range rows {
+		for col, val := range row {
+			fmt.Fprintf(c.W, "%s: %s<br>\n", col, val)
+		}
+		fmt.Fprintf(c.W, "<br>\n")
+	}
+
+	fmt.Fprintf(c.W, "<br>\n")
+	fmt.Fprintf(c.W, "key: %s<br>\n", key)
+	// next row:
+	// select * from application where id>'3' limit 1;
+	// previous row:
+	// select * from application where id<'3' limit 1;
+
+	// determine the first id
+	query = fmt.Sprintf("select %s from %s limit 1", key, table)
+	fmt.Fprintf(os.Stderr, "%s\n", query)
+	rows, err = Query(c.Dbh, query)
+	if err != nil {
+		panic(err.Error())
+	}
+	row := rows[0]
+	firstid, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
+	fmt.Fprintf(c.W, "firstid: %d<br/>\n", firstid)
+
+	// determine the last id
+	query = fmt.Sprintf("select %s from %s order by %s desc limit 1", key, table, key)
+	fmt.Fprintf(os.Stderr, "%s\n", query)
+	rows, err = Query(c.Dbh, query)
+	if err != nil {
+		panic(err.Error())
+	}
+	row = rows[0]
+	lastid, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
+	fmt.Fprintf(c.W, "lastid: %d<br/>\n", lastid)
+
+	// no id, then we get the first record
+	if id == 0 {
+		id = firstid
+	}
+	fmt.Fprintf(c.W, "id: %d<br/>\n", id)
+
+	// next link
+	if id < lastid {
+		query = fmt.Sprintf("select %s from %s where %s>'%d' limit 1",
+			key, table, key, id)
+		fmt.Fprintf(os.Stderr, "%s\n", query)
+		rows, err = Query(c.Dbh, query)
+		if err != nil {
+			panic(err.Error())
+		}
+		row = rows[0]
+		nextid, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
+		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">next</a>\n", table, field, key, nextid)
+	}
+
+	// previous link
+	if id > firstid {
+		query = fmt.Sprintf("select %s from %s where %s<'%d' order by %s desc limit 1",
+			key, table, key, id, key)
+		fmt.Fprintf(os.Stderr, "%s\n", query)
+		rows, err = Query(c.Dbh, query)
+		if err != nil {
+			panic(err.Error())
+		}
+		row = rows[0]
+		previd, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
+		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">previous</a><br/>\n", table, field, key, previd)
+	}
 }
 
 //
