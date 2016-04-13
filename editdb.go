@@ -547,14 +547,20 @@ func handler_lsopts(c *Context) {
 }
 
 func handler_form(c *Context) {
+	var id int
 	urlquery := c.R.URL.Query()
 
 	table := urlquery.Get("table")
 	field := urlquery.Get("field")
 	key := urlquery.Get("key")
-	id, _ := strconv.Atoi(urlquery.Get("id"))
+	idstr := urlquery.Get("id")
+	if idstr == "" {
+		id = -1
+	} else {
+		id, _ = strconv.Atoi(idstr)
+	}
 
-	fmt.Fprintf(c.W, "field: %s<br>\n", field)
+	//fmt.Fprintf(c.W, "field: %s<br>\n", field)
 
 	query := fmt.Sprintf(`
 	select
@@ -584,7 +590,8 @@ func handler_form(c *Context) {
 	}
 
 	fmt.Fprintf(c.W, "<br>\n")
-	fmt.Fprintf(c.W, "key: %s<br>\n", key)
+	//fmt.Fprintf(c.W, "key: %s<br>\n", key)
+
 	// next row:
 	// select * from application where id>'3' limit 1;
 	// previous row:
@@ -599,10 +606,11 @@ func handler_form(c *Context) {
 	}
 	row := rows[0]
 	firstid, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
-	fmt.Fprintf(c.W, "firstid: %d<br/>\n", firstid)
+	//fmt.Fprintf(c.W, "firstid: %d<br/>\n", firstid)
 
 	// determine the last id
-	query = fmt.Sprintf("select %s from %s order by %s desc limit 1", key, table, key)
+	query = fmt.Sprintf("select %s from %s order by %s desc limit 1",
+		key, table, key)
 	fmt.Fprintf(os.Stderr, "%s\n", query)
 	rows, err = Query(c.Dbh, query)
 	if err != nil {
@@ -610,13 +618,32 @@ func handler_form(c *Context) {
 	}
 	row = rows[0]
 	lastid, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
-	fmt.Fprintf(c.W, "lastid: %d<br/>\n", lastid)
+	//fmt.Fprintf(c.W, "lastid: %d<br/>\n", lastid)
 
-	// no id, then we get the first record
-	if id == 0 {
+	// id out of range, then use the first record
+	if (id < firstid) || (id > lastid) {
 		id = firstid
 	}
-	fmt.Fprintf(c.W, "id: %d<br/>\n", id)
+	//fmt.Fprintf(c.W, "id: %d<br/>\n", id)
+
+	// form request
+	fmt.Fprintf(c.W, "<br>\n")
+	query = fmt.Sprintf("select * from %s where %s='%d'", table, key, id)
+	rows, err = Query(c.Dbh, query)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	for _, row := range rows {
+		fmt.Fprintf(c.W, "<h2>%s %s: %s</h2><br>\n",
+			table, field, row[field])
+		for col, val := range row {
+			fmt.Fprintf(c.W, "%s: %s<br>\n", col, val)
+		}
+		fmt.Fprintf(c.W, "<br>\n")
+	}
+
+	fmt.Fprintf(c.W, "<br>\n")
 
 	// next link
 	if id < lastid {
@@ -629,7 +656,8 @@ func handler_form(c *Context) {
 		}
 		row = rows[0]
 		nextid, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
-		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">next</a>\n", table, field, key, nextid)
+		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">next</a>\n",
+			table, field, key, nextid)
 	}
 
 	// previous link
@@ -643,7 +671,8 @@ func handler_form(c *Context) {
 		}
 		row = rows[0]
 		previd, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
-		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">previous</a><br/>\n", table, field, key, previd)
+		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">previous</a><br/>\n",
+			table, field, key, previd)
 	}
 }
 
