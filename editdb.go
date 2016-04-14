@@ -45,6 +45,8 @@ type tblcol struct {
 const (
 	jqgridoper string = "jqGrid:oper"
 	jqgridid   string = "jqGrid:id"
+	progname   string = "EditDB"
+	version    string = "1.0"
 )
 
 //
@@ -143,7 +145,9 @@ func describe_cols(c *Context, table string) (r string) {
 				fmt.Sprintf("    { name: '%s', editable: true, edittype:'text' }", colName.String))
 		}
 	}
-	return strings.Join(res, ",\n")
+	r = strings.Join(res, ",\n")
+	//fmt.Println(r)
+	return r
 }
 
 // construct the select query that will display all fields
