@@ -15,9 +15,11 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 //
@@ -688,9 +690,18 @@ func main() {
 		log.Panic(err.Error())
 	}
 
-	//Dbinit(&c)
 	Dbconnect(&c)
 	defer Dbclose(&c)
+
+	// trap SIGINT and SIGTERM then close the DB connexion and quit
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	signal.Notify(ch, syscall.SIGTERM)
+	go func() {
+		<-ch
+		trapexit(&c)
+		os.Exit(0)
+	}()
 
 	http.HandleFunc("/",
 		http.HandlerFunc(
