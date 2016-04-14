@@ -1,0 +1,11 @@
+[Dbi]
+Host="localhost"
+Name=""
+Port="3306"
+User=""
+Pass=""
+
+[Wwwi]
+Port=""
+Docroot=""
+
