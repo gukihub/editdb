@@ -27,11 +27,17 @@ type Dbinfo struct {
 	Pass string
 }
 
+type Wwwinfo struct {
+	Port    string
+	Docroot string
+}
+
 type Context struct {
-	Dbi Dbinfo
-	Dbh *sql.DB
-	W   http.ResponseWriter
-	R   *http.Request
+	Dbi  Dbinfo
+	Wwwi Wwwinfo
+	Dbh  *sql.DB
+	W    http.ResponseWriter
+	R    *http.Request
 }
 
 //
@@ -46,13 +52,16 @@ const (
 //   Functions
 //
 
+/*
+// Not used anymore, using a config file now
 func Dbinit(ctx *Context) {
-	ctx.Dbi.Host = "mysql"
+	ctx.Dbi.Host = "localhost"
 	ctx.Dbi.Name = "db2"
 	ctx.Dbi.Port = "3306"
 	ctx.Dbi.User = "root"
 	ctx.Dbi.Pass = "root"
 }
+*/
 
 func Dbconnect(ctx *Context) {
 	// connexion string

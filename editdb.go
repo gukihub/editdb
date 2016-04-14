@@ -10,9 +10,10 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"gopkg.in/gcfg.v1"
+	"log"
 	"math"
 	"net/http"
-	"net/http/cgi"
 	"os"
 	"sort"
 	"strconv"
@@ -682,21 +683,30 @@ func handler_form(c *Context) {
 
 func main() {
 	var c Context
-	Dbinit(&c)
-	Dbconnect(&c)
+	err := gcfg.ReadFileInto(&c, "editdb.cfg")
+	if err != nil {
+		log.Panic(err.Error())
+	}
 
-	err := cgi.Serve(
+	//Dbinit(&c)
+	Dbconnect(&c)
+	defer Dbclose(&c)
+
+	http.HandleFunc("/",
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
 				c.W = w
 				c.R = r
 				handler(&c)
 			}))
-	if err != nil {
-		fmt.Println(err)
-	}
+	http.Handle("/css/",
+		http.FileServer(
+			http.Dir(c.Wwwi.Docroot)))
+	http.Handle("/js/",
+		http.FileServer(
+			http.Dir(c.Wwwi.Docroot)))
 
-	Dbclose(&c)
+	log.Fatal(http.ListenAndServe(":"+c.Wwwi.Port, nil))
 }
 
 //

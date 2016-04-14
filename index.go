@@ -182,7 +182,7 @@ body
 	fmt.Fprintf(c.W, "%s\n", s1)
 
 	var t1 = template.Must(template.New("t1").Parse(s2))
-	var t2 = template.Must(template.New("t1").Parse(s4))
+	var t2 = template.Must(template.New("t2").Parse(s4))
 
 	type tblidx struct {
 		index int
