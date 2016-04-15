@@ -38,6 +38,7 @@ type Context struct {
 	Dbh  *sql.DB
 	W    http.ResponseWriter
 	R    *http.Request
+	Sid  string
 }
 
 //

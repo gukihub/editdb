@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"text/template"
 )
 
 //
@@ -64,6 +65,8 @@ func handler(c *Context) {
 		handler_lsopts(c)
 	case "form":
 		handler_form(c)
+	case "login":
+		handler_login(c)
 	default:
 		handler_index(c)
 	}
@@ -680,6 +683,16 @@ func handler_form(c *Context) {
 		previd, _ := strconv.Atoi(fmt.Sprintf("%s", row[key]))
 		fmt.Fprintf(c.W, "<a href=\"?app=form&table=%s&field=%s&key=%s&id=%d\">previous</a><br/>\n",
 			table, field, key, previd)
+	}
+}
+
+func handler_login(c *Context) {
+	tmplfile := "login.tmpl"
+	t := template.New("t")
+	t1 := template.Must(t.ParseFiles(tmplfile))
+	err := t1.ExecuteTemplate(c.W, tmplfile, nil)
+	if err != nil {
+		fmt.Println("executing template:", err)
 	}
 }
 
