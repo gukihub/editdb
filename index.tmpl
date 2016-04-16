@@ -18,11 +18,12 @@ $(function () {
 
 {{$jqgridoper := .Jqgridoper}}
 {{$jqgridid := .Jqgridid}}
+{{$sid := .Sid}}
 
 {{ range $i, $td := .Tabledef }}
 
 $("#grid{{$td.Tnum}}").jqGrid({
-  url: "?app=lstable&table={{$td.Tname}}",
+  url: "?app=lstable&table={{$td.Tname}}&sid={{$sid}}",
   datatype: "xml",
   mtype: "GET",
   colModel: [
@@ -32,9 +33,9 @@ $("#grid{{$td.Tnum}}").jqGrid({
   cellEdit: true,
   cellsubmit: 'remote',
   // url used when editing a record
-  cellurl: '?app=edtable&table={{$td.Tname}}',
+  cellurl: '?app=edtable&table={{$td.Tname}}&sid={{$sid}}',
   // url used when adding a record
-  editurl: '?app=edtable&table={{$td.Tname}}',
+  editurl: '?app=edtable&table={{$td.Tname}}&sid={{$sid}}',
   pager: "#pager{{$td.Tnum}}",
   height: 'auto',
   rowNum: 10,

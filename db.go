@@ -64,7 +64,7 @@ func Dbinit(ctx *Context) {
 }
 */
 
-func Dbconnect(ctx *Context) {
+func Dbconnect(ctx *Context) (err error) {
 	// connexion string
 	constr := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 		ctx.Dbi.User, ctx.Dbi.Pass,
@@ -72,19 +72,21 @@ func Dbconnect(ctx *Context) {
 	fmt.Fprintf(os.Stderr, "Connection string: %s\n", constr)
 	db, err := sql.Open("mysql", constr)
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
+		return err
 	}
 
 	// Open doesn't open a connection. Validate DSN data:
 	err = db.Ping()
 	if err != nil {
-		panic(err.Error())
+		fmt.Println(err.Error())
+		return err
 	}
 
 	fmt.Fprintf(os.Stderr, "Connection ok\n")
 
 	ctx.Dbh = db
-	return
+	return nil
 }
 
 // this function execute the given query to the DB and return the results

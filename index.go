@@ -21,6 +21,7 @@ func handler_index(c *Context) {
 		Progname   string
 		Version    string
 		Dbname     string
+		Sid        string
 	}
 
 	var td st_tmpdef
@@ -30,6 +31,7 @@ func handler_index(c *Context) {
 	td.Jqgridoper = jqgridoper
 	td.Jqgridid = jqgridid
 	td.Version = version
+	td.Sid = c.Sid
 
 	tables, err := table_list(c)
 	if err != nil {

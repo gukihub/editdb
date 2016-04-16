@@ -10,7 +10,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"gopkg.in/gcfg.v1"
+	//"gopkg.in/gcfg.v1"
 	"log"
 	"math"
 	"net/http"
@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"text/template"
 )
 
 //
@@ -50,12 +49,41 @@ const (
 	version    string = "1.0"
 )
 
+var (
+	// session map
+	smap map[string]*Context
+	// channel map
+	cmap map[string]chan string
+)
+
 //
 //   Functions
 //
 
-func handler(c *Context) {
-	urlquery := c.R.URL.Query()
+func handler(w http.ResponseWriter, r *http.Request) {
+	urlquery := r.URL.Query()
+
+	if urlquery.Get("app") == "dologin" {
+		handler_dologin(w, r)
+		return
+	}
+
+	sid := urlquery.Get("sid")
+	if sid == "" {
+		handler_login(w, r)
+		return
+	}
+
+	c := smap[sid]
+	if c == nil {
+		http.Redirect(w, r, "?session=expired", 301)
+		return
+	}
+
+	c.W = w
+	c.R = r
+	fmt.Fprintf(os.Stdout, "c: %v\n", c)
+
 	switch urlquery.Get("app") {
 	case "lstable":
 		handler_lstable(c)
@@ -65,8 +93,10 @@ func handler(c *Context) {
 		handler_lsopts(c)
 	case "form":
 		handler_form(c)
-	case "login":
-		handler_login(c)
+	//case "login":
+	//handler_login(c)
+	//case "dologin":
+	//handler_dologin(c)
 	default:
 		handler_index(c)
 	}
@@ -121,7 +151,6 @@ func describe_cols(c *Context, table string) (r string) {
 		`, table, c.Dbi.Name)
 
 	rows, err := c.Dbh.Query(query)
-
 	if err != nil {
 		panic(err.Error())
 	}
@@ -135,14 +164,20 @@ func describe_cols(c *Context, table string) (r string) {
 		}
 		if cntr[colName.String].column != "" {
 			res = append(res,
-				fmt.Sprintf(`    {
+				fmt.Sprintf(
+					`    {
       name: '%s',
       editable: true,
       edittype: 'select',
       editoptions:{
 %s
       }
-    }`, colName.String, mkeditopt_url(c, cntr[colName.String].table, cntr[colName.String].column)))
+    }`,
+					colName.String,
+					mkeditopt_url(
+						c,
+						cntr[colName.String].table,
+						cntr[colName.String].column)))
 		} else {
 			res = append(res,
 				fmt.Sprintf("    { name: '%s', editable: true, edittype:'text' }", colName.String))
@@ -686,14 +721,8 @@ func handler_form(c *Context) {
 	}
 }
 
-func handler_login(c *Context) {
-	tmplfile := "login.tmpl"
-	t := template.New("t")
-	t1 := template.Must(t.ParseFiles(tmplfile))
-	err := t1.ExecuteTemplate(c.W, tmplfile, nil)
-	if err != nil {
-		fmt.Println("executing template:", err)
-	}
+func tolog(s string) {
+	log.Println(s)
 }
 
 //
@@ -701,14 +730,24 @@ func handler_login(c *Context) {
 //
 
 func main() {
-	var c Context
-	err := gcfg.ReadFileInto(&c, "editdb.cfg")
-	if err != nil {
-		log.Panic(err.Error())
-	}
+	tolog("start")
+	// config
+	docroot := "/home/gui/docker/containers/jqgrid/grid3"
+	port := "8083"
 
-	Dbconnect(&c)
-	defer Dbclose(&c)
+	/*
+		var c Context
+		err := gcfg.ReadFileInto(&c, "editdb.cfg")
+		if err != nil {
+			log.Panic(err.Error())
+		}
+	*/
+
+	smap = make(map[string]*Context)
+	cmap = make(map[string]chan string)
+
+	//Dbconnect(&c)
+	//defer Dbclose(&c)
 
 	// trap SIGINT and SIGTERM then close the DB connexion and quit
 	ch := make(chan os.Signal, 1)
@@ -716,25 +755,28 @@ func main() {
 	signal.Notify(ch, syscall.SIGTERM)
 	go func() {
 		<-ch
-		trapexit(&c)
+		fmt.Fprintf(os.Stderr, "\n")
+		for sid, msg := range cmap {
+			fmt.Fprintf(os.Stderr, "Closing session %s\n", sid)
+			// send the quit signal to the goroutine
+			msg <- "quit"
+			// wait for the goroutine to complete
+			<-msg
+		}
+		tolog("stop")
 		os.Exit(0)
 	}()
 
-	http.HandleFunc("/",
-		http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				c.W = w
-				c.R = r
-				handler(&c)
-			}))
+	http.HandleFunc("/", handler)
+
 	http.Handle("/css/",
 		http.FileServer(
-			http.Dir(c.Wwwi.Docroot)))
+			http.Dir(docroot)))
 	http.Handle("/js/",
 		http.FileServer(
-			http.Dir(c.Wwwi.Docroot)))
+			http.Dir(docroot)))
 
-	log.Fatal(http.ListenAndServe(":"+c.Wwwi.Port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 //

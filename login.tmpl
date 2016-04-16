@@ -1,15 +1,57 @@
 <html>
-	<head>
-	</head>
+  <head>
+    <style type="text/css">
+      #loadingmsg {
+      color: black;
+      background: #fff; 
+      padding: 10px;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      z-index: 100;
+      margin-right: -25%;
+      margin-bottom: -25%;
+      }
+      #loadingover {
+      background: black;
+      z-index: 99;
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
+      filter: alpha(opacity=80);
+      -moz-opacity: 0.8;
+      -khtml-opacity: 0.8;
+      opacity: 0.8;
+      }
+    </style>
 
-	<body>
-		<form action=?app=dologin method="POST">
-			DB name:<br><input type="text" name="dbname"><br>
-			Host:<br><input type="text" name="dbhost"><br>
-			User:<br><input type="text" name="dbuser"><br>
-			Password:<br><input type="text" name="dbpass"><br>
-			<br>
-			<input type="submit" value="Ok">
-		</form>
-	</body>
+    <script>
+      function showLoading() {
+        document.getElementById('loadingmsg').style.display = 'block';
+        document.getElementById('loadingover').style.display = 'block';
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id='loadingmsg' style='display: none;'>Loading dartabase, please wait...</div>
+    <div id='loadingover' style='display: none;'></div>
+
+    {{if eq .Session "expired"}}
+      Your session has expired, please login again.<br><br>
+    {{else if eq .Session "confailed"}}
+      Connection failed, please try again.<br><br>
+    {{end}}
+    <form action=?app=dologin method="POST" onsubmit='showLoading();'>
+      DB name:<br><input type="text" name="dbname"><br>
+      Host:<br><input type="text" name="dbhost"><br>
+      User:<br><input type="text" name="dbuser"><br>
+      Password:<br><input type="Password" name="dbpass"><br>
+      <br>
+      <input type="submit" value="Ok">
+    </form>
+  </body>
 </html>
